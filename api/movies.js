@@ -19,7 +19,7 @@ export default async function handler(req, res) {
     const NOTION_TOKEN = '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';
     const DATABASE_ID = '1e02d2669da544308db22e33c3a45506';
 
-    // First, let's try a simple query without filters to see what we get
+    // Get all data without filters to debug
     const response = await fetch(`https://api.notion.com/v1/databases/${DATABASE_ID}/query`, {
       method: 'POST',
       headers: {
@@ -44,61 +44,41 @@ export default async function handler(req, res) {
 
     const data = await response.json();
     
-    // Log the first result to see the structure
-    if (data.results && data.results.length > 0) {
-      console.log('First result properties:', Object.keys(data.results[0].properties));
-    }
-    
-    const formattedMovies = data.results
-      .map(page => {
-        const props = page.properties;
-        
-        // Extract data safely, handling different property name variations
-        const name = props.Name?.title?.[0]?.text?.content || 
-                    props.Title?.title?.[0]?.text?.content || 
-                    'Untitled';
-                    
-        const status = props.Status?.select?.name || 
-                      props.status?.select?.name || '';
-                      
-        const lastWatched = props['Last Watched']?.date?.start || 
-                           props.LastWatched?.date?.start || 
-                           props['last watched']?.date?.start || '';
-                           
-        const whoPicked = props['Who Picked']?.select?.name || 
-                         props.WhoPicked?.select?.name || 
-                         props['who picked']?.select?.name || '';
-                         
-        const adult = props.Adult?.checkbox || 
-                     props.adult?.checkbox || false;
-                     
-        const movie = props.Movie?.checkbox || 
-                     props.movie?.checkbox || true;
-                     
-        const streamService = props['Stream Service']?.select?.name || 
-                             props.StreamService?.select?.name || 
-                             props['stream service']?.select?.name || '';
+    // Debug: Show all raw data first
+    const allMovies = data.results.map(page => {
+      const props = page.properties;
+      
+      return {
+        name: props.Name?.title?.[0]?.text?.content || 'Untitled',
+        status: props.Status?.select?.name || 'No Status',
+        lastWatched: props['Last Watched']?.date?.start || 'No Date',
+        whoPicked: props['Who Picked']?.select?.name || 'No Picker',
+        adult: props.Adult?.checkbox,
+        movie: props.Movie?.checkbox,
+        streamService: props['Stream Service']?.select?.name || 'No Service',
+        added: page.created_time,
+        // Debug info
+        rawStatus: props.Status,
+        rawAdult: props.Adult,
+        allProperties: Object.keys(props)
+      };
+    });
 
-        return {
-          name,
-          status,
-          lastWatched,
-          whoPicked,
-          adult,
-          movie,
-          streamService,
-          added: page.created_time
-        };
-      })
-      .filter(movie => 
-        movie.status === 'Watched' && 
-        !movie.adult
-      );
+    // Filter for watched, non-adult movies
+    const filteredMovies = allMovies.filter(movie => 
+      movie.status === 'Watched' && movie.adult === false
+    );
 
     res.status(200).json({
       success: true,
-      movies: formattedMovies,
-      total: formattedMovies.length
+      movies: filteredMovies,
+      total: filteredMovies.length,
+      debug: {
+        totalFromNotion: allMovies.length,
+        firstMovieExample: allMovies[0] || null,
+        allStatuses: [...new Set(allMovies.map(m => m.status))],
+        allAdultValues: [...new Set(allMovies.map(m => m.adult))]
+      }
     });
 
   } catch (error) {
