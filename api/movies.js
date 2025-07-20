@@ -19,7 +19,6 @@ export default async function handler(req, res) {
     const NOTION_TOKEN = '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';
     const DATABASE_ID = '1e02d2669da544308db22e33c3a45506';
 
-    // Get all data without filters to debug
     const response = await fetch(`https://api.notion.com/v1/databases/${DATABASE_ID}/query`, {
       method: 'POST',
       headers: {
@@ -44,41 +43,35 @@ export default async function handler(req, res) {
 
     const data = await response.json();
     
-    // Debug: Show all raw data first
     const allMovies = data.results.map(page => {
       const props = page.properties;
       
       return {
         name: props.Name?.title?.[0]?.text?.content || 'Untitled',
-        status: props.Status?.select?.name || 'No Status',
-        lastWatched: props['Last Watched']?.date?.start || 'No Date',
-        whoPicked: props['Who Picked']?.select?.name || 'No Picker',
-        adult: props.Adult?.checkbox,
-        movie: props.Movie?.checkbox,
-        streamService: props['Stream Service']?.select?.name || 'No Service',
-        added: page.created_time,
-        // Debug info
-        rawStatus: props.Status,
-        rawAdult: props.Adult,
-        allProperties: Object.keys(props)
+        status: props.Status?.select?.name || '',
+        lastWatched: props['Last Watched']?.date?.start || '',
+        whoPicked: props['Who Picked']?.select?.name || '',
+        adult: props.Adult?.checkbox || false,
+        movie: props.Movie?.checkbox || false,
+        streamService: props['Stream Service']?.select?.name || '',
+        added: page.created_time
       };
     });
 
-    // Filter for watched, non-adult movies
+    // Filter for movies that have:
+    // 1. A "Last Watched" date (means they were watched)
+    // 2. Adult is false
+    // 3. Have a picker (means it was actually picked and watched)
     const filteredMovies = allMovies.filter(movie => 
-      movie.status === 'Watched' && movie.adult === false
+      movie.lastWatched && // Has a watch date
+      movie.adult === false && // Not adult
+      movie.whoPicked // Has someone who picked it
     );
 
     res.status(200).json({
       success: true,
       movies: filteredMovies,
-      total: filteredMovies.length,
-      debug: {
-        totalFromNotion: allMovies.length,
-        firstMovieExample: allMovies[0] || null,
-        allStatuses: [...new Set(allMovies.map(m => m.status))],
-        allAdultValues: [...new Set(allMovies.map(m => m.adult))]
-      }
+      total: filteredMovies.length
     });
 
   } catch (error) {
