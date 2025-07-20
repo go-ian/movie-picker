@@ -33,7 +33,8 @@ export default async function handler(req, res) {
             property: 'Last Watched',
             direction: 'descending'
           }
-        ]
+        ],
+        page_size: 100 // Get more movies to ensure we have complete history
       })
     });
 
