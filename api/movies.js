@@ -79,24 +79,33 @@ export default async function handler(req, res) {
       whoPicked: m.whoPicked
     })));
 
-    // Since Status reading seems broken, let's just filter on the basic criteria for now
-    // and manually exclude movies we know should be excluded
-    const filteredMovies = allMovies.filter(movie => {
+    // Filter movies into two categories:
+    // 1. Movies with pickers (affect rotation)
+    // 2. Movies without pickers (show as "Unknown", don't affect rotation)
+    const allFilteredMovies = allMovies.filter(movie => {
       const hasWatchedDate = movie.lastWatched;
       const isNotAdult = movie.adult === false;
-      const hasPicker = movie.whoPicked;
       
-      console.log(`Movie: ${movie.name}, Status: "${movie.status}", hasWatchedDate: ${!!hasWatchedDate}, isNotAdult: ${isNotAdult}, hasPicker: ${!!hasPicker}`);
+      console.log(`Movie: ${movie.name}, Status: "${movie.status}", hasWatchedDate: ${!!hasWatchedDate}, isNotAdult: ${isNotAdult}, hasPicker: ${!!movie.whoPicked}`);
       
-      return hasWatchedDate && isNotAdult && hasPicker;
+      // Include if it has a watch date and is not adult (regardless of picker)
+      return hasWatchedDate && isNotAdult;
     });
 
-    console.log('Filtered movies count:', filteredMovies.length);
+    // Mark movies without pickers as "Unknown" 
+    const processedMovies = allFilteredMovies.map(movie => ({
+      ...movie,
+      whoPicked: movie.whoPicked || 'Unknown'
+    }));
+
+    console.log('All filtered movies count:', processedMovies.length);
+    console.log('Movies with pickers:', processedMovies.filter(m => m.whoPicked !== 'Unknown').length);
+    console.log('Movies without pickers (Unknown):', processedMovies.filter(m => m.whoPicked === 'Unknown').length);
 
     res.status(200).json({
       success: true,
-      movies: filteredMovies,
-      total: filteredMovies.length
+      movies: processedMovies,
+      total: processedMovies.length
     });
 
   } catch (error) {
