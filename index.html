@@ -66,8 +66,6 @@
                     return;
                 }
 
-                setMovies(notionMovies);
-
                 // Filter out movies with "Unknown" pickers for rotation calculation
                 const moviesWithPickers = notionMovies.filter(movie => 
                     movie.whoPicked && movie.whoPicked !== 'Unknown'
@@ -76,6 +74,7 @@
                 if (moviesWithPickers.length === 0) {
                     setCurrentPicker('Cove');
                     setNextPicker('Victoria');
+                    setMovies(notionMovies);
                     return;
                 }
 
@@ -84,12 +83,14 @@
                 let owedTurns = new Set(); // Track who's owed turns due to substitutions
                 let rotationPosition = 'Cove'; // Track where we are in the normal rotation
 
-                // Process movies from oldest to newest to build the correct state
-                // Only use movies that have actual pickers (not "Unknown")
+                // Process movies from oldest to newest and track substitutes
                 const moviesByDate = [...moviesWithPickers].reverse(); // Oldest first
+                const moviesWithSubstituteInfo = [];
 
                 for (const movie of moviesByDate) {
                     const actualPicker = movie.whoPicked;
+                    let isSubstitute = false;
+                    let substitutingFor = null;
                     
                     if (actualPicker === expectedPicker) {
                         // Regular pick - advance both expected and rotation position
@@ -98,13 +99,36 @@
                         // If this person was owed a turn, they're no longer owed
                         owedTurns.delete(actualPicker);
                     } else {
-                        // Substitute pick - expectedPicker is still owed their turn
+                        // Substitute pick - mark as substitute
+                        isSubstitute = true;
+                        substitutingFor = expectedPicker;
                         owedTurns.add(expectedPicker);
                         // Advance rotation position because someone did pick (even if substitute)
                         rotationPosition = getNextInRotation(rotationPosition);
                         // Don't advance expectedPicker since the right person didn't pick
                     }
+
+                    moviesWithSubstituteInfo.push({
+                        ...movie,
+                        isSubstitute,
+                        substitutingFor
+                    });
                 }
+
+                // Add substitute info to the original movies array (including Unknown movies)
+                const moviesWithSubstituteData = notionMovies.map(movie => {
+                    if (movie.whoPicked === 'Unknown') {
+                        return { ...movie, isSubstitute: false, substitutingFor: null };
+                    }
+                    
+                    const movieWithSubInfo = moviesWithSubstituteInfo.find(m => 
+                        m.name === movie.name && m.lastWatched === movie.lastWatched
+                    );
+                    
+                    return movieWithSubInfo || { ...movie, isSubstitute: false, substitutingFor: null };
+                });
+
+                setMovies(moviesWithSubstituteData);
 
                 // Determine current picker and next up
                 if (owedTurns.size > 0) {
@@ -134,6 +158,26 @@
                     'Ian': 'bg-orange-100 text-orange-800 border-orange-200'
                 };
                 return colors[picker] || 'bg-gray-100 text-gray-800 border-gray-200';
+            };
+
+            const formatDateTime = (dateString) => {
+                if (!dateString) return 'No date';
+                
+                const date = new Date(dateString);
+                const dateStr = date.toLocaleDateString();
+                const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                
+                return `${dateStr} @ ${timeStr}`;
+            };
+
+            const getSubstituteChipColor = (person) => {
+                const colors = {
+                    'Jettson': 'bg-blue-50 text-blue-700 border-blue-200',
+                    'Cove': 'bg-green-50 text-green-700 border-green-200',
+                    'Victoria': 'bg-purple-50 text-purple-700 border-purple-200',
+                    'Ian': 'bg-orange-50 text-orange-700 border-orange-200'
+                };
+                return colors[person] || 'bg-gray-50 text-gray-700 border-gray-200';
             };
 
             useEffect(() => {
@@ -229,11 +273,16 @@
                                         <div key={`${movie.name}-${movie.lastWatched || index}`} 
                                              className="flex items-center justify-between p-4 rounded-lg border bg-gray-50 border-gray-200">
                                             <div className="flex-1">
-                                                <div className="flex items-center gap-3">
+                                                <div className="flex items-center gap-3 mb-2">
                                                     <h4 className="font-medium text-gray-900">{movie.name || 'Untitled Movie'}</h4>
+                                                    {movie.isSubstitute && movie.substitutingFor && (
+                                                        <span className={`px-2 py-1 text-xs rounded-full border ${getSubstituteChipColor(movie.substitutingFor)}`}>
+                                                            Substitute for {movie.substitutingFor}
+                                                        </span>
+                                                    )}
                                                 </div>
-                                                <p className="text-sm text-gray-600 mt-1">
-                                                    {movie.streamService || 'Unknown Service'} • {movie.lastWatched ? new Date(movie.lastWatched).toLocaleDateString() : 'No date'}
+                                                <p className="text-sm text-gray-600">
+                                                    {movie.streamService || 'Unknown Service'} • {formatDateTime(movie.lastWatched)}
                                                 </p>
                                             </div>
                                             <div className={`px-3 py-1 rounded-full text-sm font-medium border ${getPickerColor(movie.whoPicked || 'Unknown')}`}>
