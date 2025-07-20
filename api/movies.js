@@ -79,17 +79,20 @@ export default async function handler(req, res) {
       whoPicked: m.whoPicked
     })));
 
-    // Filter movies into two categories:
-    // 1. Movies with pickers (affect rotation)
-    // 2. Movies without pickers (show as "Unknown", don't affect rotation)
+    // Filter movies based on multiple criteria:
+    // 1. Has a "Last Watched" date (means they were watched)
+    // 2. Adult is false
+    // 3. Status is NOT "To Watch" (even if status reading is inconsistent)
     const allFilteredMovies = allMovies.filter(movie => {
       const hasWatchedDate = movie.lastWatched;
       const isNotAdult = movie.adult === false;
+      // Since Status reading has been inconsistent, let's be more careful
+      const statusIsNotToWatch = movie.status !== 'To Watch';
       
-      console.log(`Movie: ${movie.name}, Status: "${movie.status}", hasWatchedDate: ${!!hasWatchedDate}, isNotAdult: ${isNotAdult}, hasPicker: ${!!movie.whoPicked}`);
+      console.log(`Movie: ${movie.name}, Status: "${movie.status}", hasWatchedDate: ${!!hasWatchedDate}, isNotAdult: ${isNotAdult}, statusIsNotToWatch: ${statusIsNotToWatch}, hasPicker: ${!!movie.whoPicked}`);
       
-      // Include if it has a watch date and is not adult (regardless of picker)
-      return hasWatchedDate && isNotAdult;
+      // Include if it has a watch date, is not adult, AND status is not "To Watch"
+      return hasWatchedDate && isNotAdult && statusIsNotToWatch;
     });
 
     // Mark movies without pickers as "Unknown" 
