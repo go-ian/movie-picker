@@ -61,14 +61,18 @@ export default async function handler(req, res) {
     });
 
     // Filter for movies that have:
-    // 1. A "Last Watched" date (means they were watched)
-    // 2. Adult is false
-    // 3. Have a picker (means it was actually picked and watched)
-    const filteredMovies = allMovies.filter(movie => 
-      movie.lastWatched && // Has a watch date
-      movie.adult === false && // Not adult
-      movie.whoPicked // Has someone who picked it
-    );
+    // 1. Status is NOT "To Watch" (exclude unwatched movies)
+    // 2. Has a "Last Watched" date (means they were watched)
+    // 3. Adult is false
+    // 4. Have a picker (means it was actually picked and watched)
+    const filteredMovies = allMovies.filter(movie => {
+      const isNotToWatch = movie.status !== 'To Watch';
+      const hasWatchedDate = movie.lastWatched;
+      const isNotAdult = movie.adult === false;
+      const hasPicker = movie.whoPicked;
+      
+      return isNotToWatch && hasWatchedDate && isNotAdult && hasPicker;
+    });
 
     res.status(200).json({
       success: true,
