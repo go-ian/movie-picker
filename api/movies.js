@@ -48,9 +48,9 @@ export default async function handler(req, res) {
     const allMovies = data.results.map(page => {
       const props = page.properties;
       
-      // Debug: Log the raw properties to see what we're getting
-      if (props.Name?.title?.[0]?.text?.content === 'LOTR: The Two Towers') {
-        console.log('Raw properties for LOTR Two Towers:', JSON.stringify(props, null, 2));
+      // Debug: Log the raw properties for any movie to see structure
+      if (props.Name?.title?.[0]?.text?.content?.includes('LOTR')) {
+        console.log(`Raw properties for ${props.Name?.title?.[0]?.text?.content}:`, JSON.stringify(props, null, 2));
       }
       
       return {
@@ -64,7 +64,9 @@ export default async function handler(req, res) {
         adult: props.Adult?.checkbox || false,
         movie: props.Movie?.checkbox || false,
         streamService: props['Stream Service']?.select?.name || '',
-        added: page.created_time
+        added: page.created_time,
+        // Debug: Include raw status for inspection
+        rawStatus: props.Status
       };
     });
 
@@ -72,26 +74,21 @@ export default async function handler(req, res) {
     console.log('All movies before filtering:', allMovies.map(m => ({
       name: m.name,
       status: m.status,
+      rawStatus: m.rawStatus,
       lastWatched: m.lastWatched,
       whoPicked: m.whoPicked
     })));
 
-    // For now, since Status isn't working properly, let's filter based on:
-    // 1. Has a "Last Watched" date (means they were watched)
-    // 2. Adult is false  
-    // 3. Have a picker (means it was actually picked and watched)
-    // We'll exclude the problematic movie manually by checking if it has a recent date but was changed to "To Watch"
+    // Since Status reading seems broken, let's just filter on the basic criteria for now
+    // and manually exclude movies we know should be excluded
     const filteredMovies = allMovies.filter(movie => {
       const hasWatchedDate = movie.lastWatched;
       const isNotAdult = movie.adult === false;
       const hasPicker = movie.whoPicked;
       
-      // Temporary fix: Exclude "LOTR: The Two Towers" specifically since we know it was changed to "To Watch"
-      const isNotProblematicMovie = movie.name !== 'LOTR: The Two Towers';
+      console.log(`Movie: ${movie.name}, Status: "${movie.status}", hasWatchedDate: ${!!hasWatchedDate}, isNotAdult: ${isNotAdult}, hasPicker: ${!!hasPicker}`);
       
-      console.log(`Movie: ${movie.name}, Status: "${movie.status}", hasWatchedDate: ${!!hasWatchedDate}, isNotAdult: ${isNotAdult}, hasPicker: ${!!hasPicker}, included: ${hasWatchedDate && isNotAdult && hasPicker && isNotProblematicMovie}`);
-      
-      return hasWatchedDate && isNotAdult && hasPicker && isNotProblematicMovie;
+      return hasWatchedDate && isNotAdult && hasPicker;
     });
 
     console.log('Filtered movies count:', filteredMovies.length);
