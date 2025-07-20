@@ -60,6 +60,14 @@ export default async function handler(req, res) {
       };
     });
 
+    // Debug: Log all movies before filtering
+    console.log('All movies before filtering:', allMovies.map(m => ({
+      name: m.name,
+      status: m.status,
+      lastWatched: m.lastWatched,
+      whoPicked: m.whoPicked
+    })));
+
     // Filter for movies that have:
     // 1. Status is NOT "To Watch" (exclude unwatched movies)
     // 2. Has a "Last Watched" date (means they were watched)
@@ -71,8 +79,12 @@ export default async function handler(req, res) {
       const isNotAdult = movie.adult === false;
       const hasPicker = movie.whoPicked;
       
+      console.log(`Movie: ${movie.name}, Status: "${movie.status}", isNotToWatch: ${isNotToWatch}, hasWatchedDate: ${!!hasWatchedDate}, isNotAdult: ${isNotAdult}, hasPicker: ${!!hasPicker}`);
+      
       return isNotToWatch && hasWatchedDate && isNotAdult && hasPicker;
     });
+
+    console.log('Filtered movies count:', filteredMovies.length);
 
     res.status(200).json({
       success: true,
