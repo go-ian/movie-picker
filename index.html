@@ -68,13 +68,25 @@
 
                 setMovies(notionMovies);
 
+                // Filter out movies with "Unknown" pickers for rotation calculation
+                const moviesWithPickers = notionMovies.filter(movie => 
+                    movie.whoPicked && movie.whoPicked !== 'Unknown'
+                );
+
+                if (moviesWithPickers.length === 0) {
+                    setCurrentPicker('Cove');
+                    setNextPicker('Victoria');
+                    return;
+                }
+
                 // Start with the expected rotation state
                 let expectedPicker = 'Cove'; // Starting point as specified
                 let owedTurns = new Set(); // Track who's owed turns due to substitutions
                 let rotationPosition = 'Cove'; // Track where we are in the normal rotation
 
                 // Process movies from oldest to newest to build the correct state
-                const moviesByDate = [...notionMovies].reverse(); // Oldest first
+                // Only use movies that have actual pickers (not "Unknown")
+                const moviesByDate = [...moviesWithPickers].reverse(); // Oldest first
 
                 for (const movie of moviesByDate) {
                     const actualPicker = movie.whoPicked;
@@ -110,6 +122,8 @@
                 console.log('Expected picker after processing:', expectedPicker);
                 console.log('Rotation position:', rotationPosition);
                 console.log('People owed turns:', Array.from(owedTurns));
+                console.log('Movies with pickers used for calculation:', moviesWithPickers.length);
+                console.log('Total movies (including Unknown):', notionMovies.length);
             };
 
             const getPickerColor = (picker) => {
