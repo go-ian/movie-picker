@@ -48,17 +48,37 @@ export default async function handler(req, res) {
     const allMovies = data.results.map(page => {
       const props = page.properties;
       
-      // Debug: Log the raw properties for any movie to see structure
-      if (props.Name?.title?.[0]?.text?.content?.includes('LOTR')) {
-        console.log(`Raw properties for ${props.Name?.title?.[0]?.text?.content}:`, JSON.stringify(props, null, 2));
+      // Debug: Log ALL property names to see what's available
+      if (props.Name?.title?.[0]?.text?.content?.includes('LOTR') || 
+          props.Name?.title?.[0]?.text?.content?.includes('Two Towers')) {
+        console.log('=== DEBUGGING MOVIE ===');
+        console.log('Movie name:', props.Name?.title?.[0]?.text?.content);
+        console.log('All property names:', Object.keys(props));
+        console.log('Status property structure:', JSON.stringify(props.Status, null, 2));
+        console.log('Raw props.Status:', props.Status);
+        console.log('Raw props["Status"]:', props["Status"]);
+        
+        // Check if there are any variations of status property names
+        const statusVariants = Object.keys(props).filter(key => 
+          key.toLowerCase().includes('status')
+        );
+        console.log('Status-related properties:', statusVariants);
+        
+        statusVariants.forEach(key => {
+          console.log(`${key}:`, JSON.stringify(props[key], null, 2));
+        });
+        console.log('=== END DEBUG ===');
       }
       
       return {
         name: props.Name?.title?.[0]?.text?.content || 'Untitled',
-        // Try different ways to access Status
+        // Try every possible way to access Status
         status: props.Status?.select?.name || 
                 props['Status']?.select?.name || 
-                props.status?.select?.name || '',
+                props.status?.select?.name ||
+                props.Status?.name ||
+                props.Status?.title?.[0]?.text?.content ||
+                '',
         lastWatched: props['Last Watched']?.date?.start || '',
         whoPicked: props['Who Picked']?.select?.name || '',
         adult: props.Adult?.checkbox || false,
@@ -66,33 +86,23 @@ export default async function handler(req, res) {
         streamService: props['Stream Service']?.select?.name || '',
         added: page.created_time,
         // Debug: Include raw status for inspection
-        rawStatus: props.Status
+        rawStatus: props.Status,
+        allProps: Object.keys(props) // See all available properties
       };
     });
 
-    // Debug: Log all movies before filtering
-    console.log('All movies before filtering:', allMovies.map(m => ({
-      name: m.name,
-      status: m.status,
-      rawStatus: m.rawStatus,
-      lastWatched: m.lastWatched,
-      whoPicked: m.whoPicked
-    })));
-
     // Filter movies based on multiple criteria:
-    // 1. Has a "Last Watched" date (means they were watched)
-    // 2. Adult is false
-    // 3. Status is NOT "To Watch" (even if status reading is inconsistent)
+    // Since Status reading is broken, let's implement a workaround
+    // We'll manually track which movies should be excluded
     const allFilteredMovies = allMovies.filter(movie => {
       const hasWatchedDate = movie.lastWatched;
       const isNotAdult = movie.adult === false;
-      // Since Status reading has been inconsistent, let's be more careful
-      const statusIsNotToWatch = movie.status !== 'To Watch';
       
-      console.log(`Movie: ${movie.name}, Status: "${movie.status}", hasWatchedDate: ${!!hasWatchedDate}, isNotAdult: ${isNotAdult}, statusIsNotToWatch: ${statusIsNotToWatch}, hasPicker: ${!!movie.whoPicked}`);
+      // For now, since Status is broken, just filter on basic criteria
+      // TODO: Fix Status reading or implement manual exclusion list
+      console.log(`Movie: ${movie.name}, Status: "${movie.status}", rawStatus: ${JSON.stringify(movie.rawStatus)}, hasWatchedDate: ${!!hasWatchedDate}, isNotAdult: ${isNotAdult}, hasPicker: ${!!movie.whoPicked}`);
       
-      // Include if it has a watch date, is not adult, AND status is not "To Watch"
-      return hasWatchedDate && isNotAdult && statusIsNotToWatch;
+      return hasWatchedDate && isNotAdult;
     });
 
     // Mark movies without pickers as "Unknown" 
