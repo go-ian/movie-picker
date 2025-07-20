@@ -68,13 +68,48 @@
 
                 setMovies(notionMovies);
 
-                const lastMovie = notionMovies[0];
-                const lastPicker = lastMovie.whoPicked;
-                
-                const nextInRotation = getNextInRotation(lastPicker);
-                
-                setCurrentPicker(nextInRotation);
-                setNextPicker(getNextInRotation(nextInRotation));
+                // Start with the expected rotation state
+                let expectedPicker = 'Cove'; // Starting point as specified
+                let owedTurns = new Set(); // Track who's owed turns due to substitutions
+                let rotationPosition = 'Cove'; // Track where we are in the normal rotation
+
+                // Process movies from oldest to newest to build the correct state
+                const moviesByDate = [...notionMovies].reverse(); // Oldest first
+
+                for (const movie of moviesByDate) {
+                    const actualPicker = movie.whoPicked;
+                    
+                    if (actualPicker === expectedPicker) {
+                        // Regular pick - advance both expected and rotation position
+                        expectedPicker = getNextInRotation(expectedPicker);
+                        rotationPosition = getNextInRotation(rotationPosition);
+                        // If this person was owed a turn, they're no longer owed
+                        owedTurns.delete(actualPicker);
+                    } else {
+                        // Substitute pick - expectedPicker is still owed their turn
+                        owedTurns.add(expectedPicker);
+                        // Advance rotation position because someone did pick (even if substitute)
+                        rotationPosition = getNextInRotation(rotationPosition);
+                        // Don't advance expectedPicker since the right person didn't pick
+                    }
+                }
+
+                // Determine current picker and next up
+                if (owedTurns.size > 0) {
+                    // Someone is owed a turn - they pick next
+                    const currentPickerFromOwed = rotationOrder.find(person => owedTurns.has(person));
+                    setCurrentPicker(currentPickerFromOwed);
+                    // Next up is the current rotation position (accounts for substitutes who already picked)
+                    setNextPicker(rotationPosition);
+                } else {
+                    // Normal rotation - use the expected picker
+                    setCurrentPicker(expectedPicker);
+                    setNextPicker(getNextInRotation(expectedPicker));
+                }
+
+                console.log('Expected picker after processing:', expectedPicker);
+                console.log('Rotation position:', rotationPosition);
+                console.log('People owed turns:', Array.from(owedTurns));
             };
 
             const getPickerColor = (picker) => {
